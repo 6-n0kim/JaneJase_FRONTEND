@@ -29,6 +29,13 @@ export const Pose2DRenderer = forwardRef<
   const ema2DRef = useRef<Float32Array | null>(null);
   const ema2DInitedRef = useRef(false);
 
+  /**
+   * 2D 랜드마크를 EMA(Exponential Moving Average) 알고리즘으로 부드럽게 처리
+   * @param lm - 원본 랜드마크 배열
+   * @param alpha - 평활화 계수 (0~1, 높을수록 현재 값에 가중치)
+   * @param minConf - 최소 신뢰도 임계값 (이보다 낮은 랜드마크는 평활화에서 제외)
+   * @returns 평활화된 랜드마크 배열
+   */
   function emaSmooth2DLandmarks(
     lm: Array<{
       x: number;
@@ -86,6 +93,10 @@ export const Pose2DRenderer = forwardRef<
   }
 
   useImperativeHandle(ref, () => ({
+    /**
+     * 2D 캔버스에 포즈 랜드마크를 그리기 (점과 연결선)
+     * @param landmarks - 업데이트할 랜드마크 데이터
+     */
     updateLandmarks: landmarks => {
       if (!canvasRef.current || !ctxRef.current || !drawingUtilsRef.current) {
         return;
@@ -106,6 +117,9 @@ export const Pose2DRenderer = forwardRef<
       }
     },
 
+    /**
+     * 캔버스를 초기화하고 EMA 버퍼를 리셋
+     */
     clear: () => {
       if (!canvasRef.current || !ctxRef.current) return;
       const canvas = canvasRef.current;
@@ -115,6 +129,11 @@ export const Pose2DRenderer = forwardRef<
       ema2DInitedRef.current = false;
     },
 
+    /**
+     * 캔버스 크기를 설정하고 그리기 컨텍스트를 초기화
+     * @param width - 캔버스 너비
+     * @param height - 캔버스 높이
+     */
     setCanvasSize: (width, height) => {
       const canvas = canvasRef.current;
       if (!canvas) return;

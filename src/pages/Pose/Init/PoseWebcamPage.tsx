@@ -338,7 +338,11 @@ export default function PoseWebcamPage() {
       {avgMeasurementData && (
         <div className="mb-8 rounded-xl border border-success bg-gradient-to-r from-success/10 to-success/5 p-8 shadow-soft">
           <div className="flex flex-col items-center justify-center gap-6 text-center">
-            <div className="h-16 w-16 rounded-full bg-green-500" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500">
+              <span className="material-symbols-outlined text-4xl text-white">
+                check_circle
+              </span>
+            </div>
             <div className="space-y-2">
               <h3 className="text-2xl font-bold text-text">
                 측정이 완료되었습니다!
@@ -425,9 +429,11 @@ export default function PoseWebcamPage() {
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-bg/80 backdrop-blur-sm">
             <div className="text-center">
               <span className="material-symbols-outlined mb-2 text-6xl text-muted">
-                videocam_off
+                videocam
               </span>
-              <p className="text-muted">웹캠이 시작되지 않았습니다</p>
+              <p className="text-muted">
+                웹캠을 시작하려면 Start 버튼을 눌러주세요
+              </p>
             </div>
           </div>
         )}

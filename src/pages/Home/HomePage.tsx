@@ -34,6 +34,8 @@ export default function HomePage() {
   const HandlePoseWebcam = () => {
     if (isAuthenticated && user) {
       navigate('/pose/init');
+    } else {
+      navigate('/login');
     }
   };
 
@@ -130,7 +132,7 @@ export default function HomePage() {
         {/* Icon */}
         <div className="mb-6 flex justify-center">
           <div
-            className={`h-16 w-16 rounded-full ${
+            className={`flex h-16 w-16 items-center justify-center rounded-full ${
               healthStatus === 'loading'
                 ? 'animate-pulse bg-blue-500'
                 : healthStatus === 'success'
@@ -139,7 +141,17 @@ export default function HomePage() {
                     ? 'bg-red-500'
                     : 'bg-gray-500'
             }`}
-          />
+          >
+            <span className="material-symbols-outlined text-4xl text-white">
+              {healthStatus === 'loading'
+                ? 'hourglass_empty'
+                : healthStatus === 'success'
+                  ? 'check_circle'
+                  : healthStatus === 'error'
+                    ? 'error'
+                    : 'help'}
+            </span>
+          </div>
         </div>
 
         {/* Description */}

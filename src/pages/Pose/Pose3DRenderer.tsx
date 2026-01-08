@@ -43,6 +43,12 @@ export const Pose3DRenderer = forwardRef<
   const emaWorldRef = useRef<Float32Array | null>(null);
   const emaInitedRef = useRef(false);
 
+  /**
+   * Three.js 3D 렌더링 환경을 초기화
+   * - WebGL 렌더러, 씬, 카메라 생성
+   * - 포즈 랜드마크 점과 연결선을 위한 지오메트리 설정
+   * - 반응형 크기 조정을 위한 ResizeObserver 설정
+   */
   const initThree = () => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -121,6 +127,11 @@ export const Pose3DRenderer = forwardRef<
     };
   };
 
+  /**
+   * Three.js 리소스를 정리하고 메모리 해제
+   * - 지오메트리, 머티리얼, 렌더러 dispose
+   * - ResizeObserver 연결 해제
+   */
   const disposeThree = () => {
     const t = threeRef.current;
     if (!t) return;
@@ -143,6 +154,12 @@ export const Pose3DRenderer = forwardRef<
     };
   }, []);
 
+  /**
+   * 3D 월드 랜드마크 데이터를 Three.js 씬에 반영
+   * - 양 어깨 중심점을 기준으로 좌표 정규화
+   * - 포즈 점과 연결선의 버퍼 지오메트리 업데이트
+   * @param worldLm - 3D 월드 좌표 랜드마크 배열
+   */
   const updateThreeFromWorldLandmarks = (
     worldLm: Array<{ x: number; y: number; z: number }>
   ) => {
@@ -202,6 +219,13 @@ export const Pose3DRenderer = forwardRef<
     t.renderer.render(t.scene, t.camera);
   };
 
+  /**
+   * 3D 월드 랜드마크를 EMA(Exponential Moving Average) 알고리즘으로 부드럽게 처리
+   * @param worldLm - 원본 3D 월드 랜드마크 배열
+   * @param alpha - 평활화 계수 (0~1, 높을수록 현재 값에 가중치)
+   * @param minConf - 최소 신뢰도 임계값 (이보다 낮은 랜드마크는 평활화에서 제외)
+   * @returns 평활화된 3D 랜드마크 배열
+   */
   const emaSmoothWorldLandmarks = (
     worldLm: Array<{
       x: number;
@@ -253,6 +277,10 @@ export const Pose3DRenderer = forwardRef<
   };
 
   useImperativeHandle(ref, () => ({
+    /**
+     * 3D 씬에 월드 랜드마크를 업데이트
+     * @param worldLandmarks - 업데이트할 3D 월드 랜드마크 데이터
+     */
     updateWorldLandmarks: worldLandmarks => {
       if (worldLandmarks && worldLandmarks.length) {
         const smoothed = emaSmoothWorldLandmarks(worldLandmarks, 0.2, 0.5);
@@ -260,6 +288,9 @@ export const Pose3DRenderer = forwardRef<
       }
     },
 
+    /**
+     * EMA 평활화 버퍼를 초기화
+     */
     clear: () => {
       emaWorldRef.current = null;
       emaInitedRef.current = false;
