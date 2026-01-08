@@ -1,4 +1,5 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import type { Coordinate } from '@/types/poseTypes';
 import * as THREE from 'three';
 import { PoseLandmarker } from '@mediapipe/tasks-vision';
 
@@ -161,7 +162,7 @@ export const Pose3DRenderer = forwardRef<
    * @param worldLm - 3D 월드 좌표 랜드마크 배열
    */
   const updateThreeFromWorldLandmarks = (
-    worldLm: Array<{ x: number; y: number; z: number }>
+    worldLm: Array<Coordinate>
   ) => {
     const t = threeRef.current;
     if (!t) return;
@@ -236,7 +237,7 @@ export const Pose3DRenderer = forwardRef<
     }>,
     alpha = 0.2,
     minConf = 0.5
-  ): Array<{ x: number; y: number; z: number }> => {
+  ): Array<Coordinate> => {
     const n = worldLm.length;
     const needed = n * 3;
 
@@ -268,7 +269,7 @@ export const Pose3DRenderer = forwardRef<
       }
     }
 
-    const smoothed: Array<{ x: number; y: number; z: number }> = new Array(n);
+    const smoothed: Array<Coordinate> = new Array(n);
     for (let i = 0; i < n; i++) {
       const ix = i * 3;
       smoothed[i] = { x: buf[ix + 0], y: buf[ix + 1], z: buf[ix + 2] };

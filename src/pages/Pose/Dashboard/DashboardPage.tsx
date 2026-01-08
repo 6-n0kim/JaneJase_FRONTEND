@@ -80,7 +80,7 @@ export default function DashboardPage() {
       if (!landmarkerRef.current) {
         return;
       } else {
-        console.log('Date : ', data);
+        console.log('Data : ', data);
       }
 
       try {

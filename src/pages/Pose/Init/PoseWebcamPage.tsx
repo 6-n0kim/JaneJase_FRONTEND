@@ -7,7 +7,7 @@ import { Pose2DRenderer } from '../Pose2DRenderer';
 import { Pose3DRenderer } from '../Pose3DRenderer';
 import type { Pose2DRendererRef } from '../Pose2DRenderer';
 import type { Pose3DRendererRef } from '../Pose3DRenderer';
-import type { MeasurementData } from '@/types/poseTypes';
+import type { Coordinate, MeasurementData } from '@/types/poseTypes';
 
 const TASKS_VERSION = '0.10.0';
 const MODEL_URL =
@@ -40,19 +40,19 @@ export default function PoseWebcamPage() {
 
   const measurementDataRef = useRef<
     Array<{
-      nose: { x: number; y: number; z: number };
-      leftEyeInner: { x: number; y: number; z: number };
-      leftEye: { x: number; y: number; z: number };
-      leftEyeOuter: { x: number; y: number; z: number };
-      rightEyeInner: { x: number; y: number; z: number };
-      rightEye: { x: number; y: number; z: number };
-      rightEyeOuter: { x: number; y: number; z: number };
-      leftEar: { x: number; y: number; z: number };
-      rightEar: { x: number; y: number; z: number };
-      mouthLeft: { x: number; y: number; z: number };
-      mouthRight: { x: number; y: number; z: number };
-      leftShoulder: { x: number; y: number; z: number };
-      rightShoulder: { x: number; y: number; z: number };
+      nose: Coordinate;
+      leftEyeInner: Coordinate;
+      leftEye: Coordinate;
+      leftEyeOuter: Coordinate;
+      rightEyeInner: Coordinate;
+      rightEye: Coordinate;
+      rightEyeOuter: Coordinate;
+      leftEar: Coordinate;
+      rightEar: Coordinate;
+      mouthLeft: Coordinate;
+      mouthRight: Coordinate;
+      leftShoulder: Coordinate;
+      rightShoulder: Coordinate;
     }>
   >([]);
 
@@ -66,7 +66,7 @@ export default function PoseWebcamPage() {
   };
 
   const calculateAverage = (
-    points: Array<{ x: number; y: number; z: number }>
+    points: Array<Coordinate>
   ) => {
     const sum = points.reduce(
       (acc, p) => ({
@@ -284,35 +284,35 @@ export default function PoseWebcamPage() {
             const lm2d = result.landmarks?.[0];
             if (lm2d && lm2d.length) {
               pose2DRef.current?.updateLandmarks(lm2d as any);
+
+              // 측정 중일 때 랜드마크 데이터 수집
+              if (isMeasuringRef.current && lm2d.length >= 13) {
+                measurementDataRef.current.push({
+                  nose: { x: lm2d[0].x, y: lm2d[0].y, z: lm2d[0].z },
+                  leftEyeInner: { x: lm2d[1].x, y: lm2d[1].y, z: lm2d[1].z },
+                  leftEye: { x: lm2d[2].x, y: lm2d[2].y, z: lm2d[2].z },
+                  leftEyeOuter: { x: lm2d[3].x, y: lm2d[3].y, z: lm2d[3].z },
+                  rightEyeInner: { x: lm2d[4].x, y: lm2d[4].y, z: lm2d[4].z },
+                  rightEye: { x: lm2d[5].x, y: lm2d[5].y, z: lm2d[5].z },
+                  rightEyeOuter: { x: lm2d[6].x, y: lm2d[6].y, z: lm2d[6].z },
+                  leftEar: { x: lm2d[7].x, y: lm2d[7].y, z: lm2d[7].z },
+                  rightEar: { x: lm2d[8].x, y: lm2d[8].y, z: lm2d[8].z },
+                  mouthLeft: { x: lm2d[9].x, y: lm2d[9].y, z: lm2d[9].z },
+                  mouthRight: { x: lm2d[10].x, y: lm2d[10].y, z: lm2d[10].z },
+                  leftShoulder: { x: lm2d[11].x, y: lm2d[11].y, z: lm2d[11].z },
+                  rightShoulder: {
+                    x: lm2d[12].x,
+                    y: lm2d[12].y,
+                    z: lm2d[12].z,
+                  },
+                });
+              }
             }
 
             // 3D 월드 랜드마크 업데이트
             const lm3d = result.worldLandmarks?.[0];
             if (lm3d && lm3d.length) {
               pose3DRef.current?.updateWorldLandmarks(lm3d as any);
-
-              // 측정 중일 때 랜드마크 데이터 수집
-              if (isMeasuringRef.current && lm3d.length >= 13) {
-                measurementDataRef.current.push({
-                  nose: { x: lm3d[0].x, y: lm3d[0].y, z: lm3d[0].z },
-                  leftEyeInner: { x: lm3d[1].x, y: lm3d[1].y, z: lm3d[1].z },
-                  leftEye: { x: lm3d[2].x, y: lm3d[2].y, z: lm3d[2].z },
-                  leftEyeOuter: { x: lm3d[3].x, y: lm3d[3].y, z: lm3d[3].z },
-                  rightEyeInner: { x: lm3d[4].x, y: lm3d[4].y, z: lm3d[4].z },
-                  rightEye: { x: lm3d[5].x, y: lm3d[5].y, z: lm3d[5].z },
-                  rightEyeOuter: { x: lm3d[6].x, y: lm3d[6].y, z: lm3d[6].z },
-                  leftEar: { x: lm3d[7].x, y: lm3d[7].y, z: lm3d[7].z },
-                  rightEar: { x: lm3d[8].x, y: lm3d[8].y, z: lm3d[8].z },
-                  mouthLeft: { x: lm3d[9].x, y: lm3d[9].y, z: lm3d[9].z },
-                  mouthRight: { x: lm3d[10].x, y: lm3d[10].y, z: lm3d[10].z },
-                  leftShoulder: { x: lm3d[11].x, y: lm3d[11].y, z: lm3d[11].z },
-                  rightShoulder: {
-                    x: lm3d[12].x,
-                    y: lm3d[12].y,
-                    z: lm3d[12].z,
-                  },
-                });
-              }
             }
           });
         }
