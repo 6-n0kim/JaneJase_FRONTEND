@@ -8,7 +8,7 @@ import { Pose3DRenderer } from '../Pose3DRenderer';
 import type { Pose2DRendererRef } from '../Pose2DRenderer';
 import type { Pose3DRendererRef } from '../Pose3DRenderer';
 import type { Coordinate, MeasurementData } from '@/types/poseTypes';
-import { getCenter, dist } from '@/utils/detectPose';
+import { getCenter, dist2D } from '@/utils/detectPose';
 const TASKS_VERSION = '0.10.0';
 const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
@@ -53,6 +53,8 @@ export default function PoseWebcamPage() {
       mouthRight: Coordinate;
       leftShoulder: Coordinate;
       rightShoulder: Coordinate;
+      leftHip: Coordinate;
+      rightHip: Coordinate;
     }>
   >([]);
 
@@ -106,16 +108,26 @@ export default function PoseWebcamPage() {
         mouthRight: calculateAverage(data.map(d => d.mouthRight)),
         leftShoulder: calculateAverage(data.map(d => d.leftShoulder)),
         rightShoulder: calculateAverage(data.map(d => d.rightShoulder)),
+        leftHip: calculateAverage(data.map(d => d.leftHip)),
+        rightHip: calculateAverage(data.map(d => d.rightHip)),
       };
 
-      // 어깨 중심과 너비 계산 및 추가
+      // 어깨/힙 중심과 너비 계산 및 추가 (스케일은 2D로 정규화하는 것이 더 안정적)
       const shoulderCenter = getCenter(
         avgData.leftShoulder,
         avgData.rightShoulder
       );
-      const shoulderWidth = dist(avgData.leftShoulder, avgData.rightShoulder);
+      const shoulderWidth = dist2D(avgData.leftShoulder, avgData.rightShoulder);
+      const hipCenter = getCenter(avgData.leftHip, avgData.rightHip);
+      const hipWidth = dist2D(avgData.leftHip, avgData.rightHip);
 
-      setAvgMeasurementData({ ...avgData, shoulderCenter, shoulderWidth });
+      setAvgMeasurementData({
+        ...avgData,
+        shoulderCenter,
+        shoulderWidth,
+        hipCenter,
+        hipWidth,
+      });
 
       console.log('=== 측정 완료: 10초간 수집된 랜드마크 평균값 ===');
       console.log('0 - nose:', avgData.nose);
@@ -292,7 +304,8 @@ export default function PoseWebcamPage() {
               pose2DRef.current?.updateLandmarks(lm2d as any);
 
               // 측정 중일 때 랜드마크 데이터 수집
-              if (isMeasuringRef.current && lm2d.length >= 13) {
+              // hip(23,24)까지 쓰므로 길이 체크
+              if (isMeasuringRef.current && lm2d.length >= 25) {
                 measurementDataRef.current.push({
                   nose: { x: lm2d[0].x, y: lm2d[0].y, z: lm2d[0].z },
                   leftEyeInner: { x: lm2d[1].x, y: lm2d[1].y, z: lm2d[1].z },
@@ -311,6 +324,8 @@ export default function PoseWebcamPage() {
                     y: lm2d[12].y,
                     z: lm2d[12].z,
                   },
+                  leftHip: { x: lm2d[23].x, y: lm2d[23].y, z: lm2d[23].z },
+                  rightHip: { x: lm2d[24].x, y: lm2d[24].y, z: lm2d[24].z },
                 });
               }
             }

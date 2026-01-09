@@ -29,8 +29,12 @@ export interface MeasurementData {
   mouthRight: Coordinate;
   leftShoulder: Coordinate;
   rightShoulder: Coordinate;
+  leftHip: Coordinate;
+  rightHip: Coordinate;
   shoulderCenter: Coordinate;
   shoulderWidth: number;
+  hipCenter?: Coordinate;
+  hipWidth?: number;
 }
 
 // location.state의 전체 구조

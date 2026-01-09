@@ -15,6 +15,7 @@ import {
 import type { LocationState, detectBadPoseInform } from '@/types/poseTypes';
 import {
   getCenter,
+  dist2D,
   detectBadPose,
   noseToShoulderDegree,
   earsToShoulderDegree,
@@ -45,6 +46,65 @@ export default function DashboardPage() {
 
   const [currentStatus, setCurrentStatus] =
     useState<detectBadPoseInform | null>(null);
+
+  // 지표 계산용 EMA(landmark 흔들림 감소)
+  const ema2DRef = useRef<Float32Array | null>(null);
+  const ema2DInitedRef = useRef(false);
+
+  function emaSmooth2DLandmarks(
+    lm: Array<{
+      x: number;
+      y: number;
+      z?: number;
+      visibility?: number;
+      presence?: number;
+    }>,
+    alpha = 0.25,
+    minConf = 0.5
+  ) {
+    const n = lm.length;
+    const needed = n * 3;
+
+    if (!ema2DRef.current || ema2DRef.current.length !== needed) {
+      ema2DRef.current = new Float32Array(needed);
+      ema2DInitedRef.current = false;
+    }
+
+    const buf = ema2DRef.current;
+
+    if (!ema2DInitedRef.current) {
+      for (let i = 0; i < n; i++) {
+        const p = lm[i];
+        buf[i * 3 + 0] = p.x;
+        buf[i * 3 + 1] = p.y;
+        buf[i * 3 + 2] = p.z ?? 0;
+      }
+      ema2DInitedRef.current = true;
+    } else {
+      for (let i = 0; i < n; i++) {
+        const p = lm[i];
+        const conf = Math.min(p.visibility ?? 1, p.presence ?? 1);
+        if (conf < minConf) continue;
+        const ix = i * 3;
+        buf[ix + 0] = alpha * p.x + (1 - alpha) * buf[ix + 0];
+        buf[ix + 1] = alpha * p.y + (1 - alpha) * buf[ix + 1];
+        buf[ix + 2] = alpha * (p.z ?? 0) + (1 - alpha) * buf[ix + 2];
+      }
+    }
+
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const ix = i * 3;
+      out[i] = {
+        x: buf[ix + 0],
+        y: buf[ix + 1],
+        z: buf[ix + 2],
+        visibility: lm[i].visibility,
+        presence: lm[i].presence,
+      };
+    }
+    return out;
+  }
 
   // MediaPipe 초기화
   useEffect(() => {
@@ -152,24 +212,68 @@ export default function DashboardPage() {
               if (lm2d && lm2d.length && standardData) {
                 pose2DRef.current?.updateLandmarks(lm2d as any);
 
+                // 지표 계산은 EMA로 한 번 더 안정화된 값을 사용
+                const smoothedLm = emaSmooth2DLandmarks(lm2d as any, 0.25, 0.5);
+
+                // 팔을 들었는지(손/팔 동작) 감지: 손 들기 때 어깨 landmark가 흔들리며 기울기 오탐 방지
+                // y는 아래로 증가이므로 "손이 어깨보다 위" => wrist.y < shoulder.y
+                const armMargin = 0.02;
+                const leftArmRaised =
+                  (smoothedLm[15]?.y ?? 1) <
+                    (smoothedLm[11]?.y ?? 1) - armMargin ||
+                  (smoothedLm[13]?.y ?? 1) <
+                    (smoothedLm[11]?.y ?? 1) - armMargin;
+                const rightArmRaised =
+                  (smoothedLm[16]?.y ?? 1) <
+                    (smoothedLm[12]?.y ?? 1) - armMargin ||
+                  (smoothedLm[14]?.y ?? 1) <
+                    (smoothedLm[12]?.y ?? 1) - armMargin;
+                const armsRaised = leftArmRaised || rightArmRaised;
+
                 // 원하시는 형식으로 데이터 변환
                 const formattedData = {
-                  nose: { x: lm2d[0].x, y: lm2d[0].y, z: lm2d[0].z },
+                  nose: {
+                    x: smoothedLm[0].x,
+                    y: smoothedLm[0].y,
+                    z: smoothedLm[0].z,
+                  },
                   leftEyeInner: { x: lm2d[1].x, y: lm2d[1].y, z: lm2d[1].z },
                   leftEye: { x: lm2d[2].x, y: lm2d[2].y, z: lm2d[2].z },
                   leftEyeOuter: { x: lm2d[3].x, y: lm2d[3].y, z: lm2d[3].z },
                   rightEyeInner: { x: lm2d[4].x, y: lm2d[4].y, z: lm2d[4].z },
                   rightEye: { x: lm2d[5].x, y: lm2d[5].y, z: lm2d[5].z },
                   rightEyeOuter: { x: lm2d[6].x, y: lm2d[6].y, z: lm2d[6].z },
-                  leftEar: { x: lm2d[7].x, y: lm2d[7].y, z: lm2d[7].z },
-                  rightEar: { x: lm2d[8].x, y: lm2d[8].y, z: lm2d[8].z },
+                  leftEar: {
+                    x: smoothedLm[7].x,
+                    y: smoothedLm[7].y,
+                    z: smoothedLm[7].z,
+                  },
+                  rightEar: {
+                    x: smoothedLm[8].x,
+                    y: smoothedLm[8].y,
+                    z: smoothedLm[8].z,
+                  },
                   mouthLeft: { x: lm2d[9].x, y: lm2d[9].y, z: lm2d[9].z },
                   mouthRight: { x: lm2d[10].x, y: lm2d[10].y, z: lm2d[10].z },
-                  leftShoulder: { x: lm2d[11].x, y: lm2d[11].y, z: lm2d[11].z },
+                  leftShoulder: {
+                    x: smoothedLm[11].x,
+                    y: smoothedLm[11].y,
+                    z: smoothedLm[11].z,
+                  },
                   rightShoulder: {
-                    x: lm2d[12].x,
-                    y: lm2d[12].y,
-                    z: lm2d[12].z,
+                    x: smoothedLm[12].x,
+                    y: smoothedLm[12].y,
+                    z: smoothedLm[12].z,
+                  },
+                  leftHip: {
+                    x: smoothedLm[23].x,
+                    y: smoothedLm[23].y,
+                    z: smoothedLm[23].z,
+                  },
+                  rightHip: {
+                    x: smoothedLm[24].x,
+                    y: smoothedLm[24].y,
+                    z: smoothedLm[24].z,
                   },
                 };
 
@@ -177,32 +281,46 @@ export default function DashboardPage() {
                   formattedData.leftShoulder,
                   formattedData.rightShoulder
                 );
+                const formattedShoulderWidth = dist2D(
+                  formattedData.leftShoulder,
+                  formattedData.rightShoulder
+                );
 
                 const SNTSD = noseToShoulderDegree(
                   standardData.nose,
-                  standardData.shoulderCenter
+                  standardData.shoulderCenter,
+                  standardData.shoulderWidth
                 );
                 const FNTSD = noseToShoulderDegree(
                   formattedData.nose,
-                  formattedDataShoulderCenter
+                  formattedDataShoulderCenter,
+                  formattedShoulderWidth
                 );
                 const SETSD = earsToShoulderDegree(
                   standardData.leftEar,
                   standardData.rightEar,
-                  standardData.shoulderCenter
+                  standardData.shoulderCenter,
+                  standardData.shoulderWidth
                 );
                 const FETSD = earsToShoulderDegree(
                   formattedData.leftEar,
                   formattedData.rightEar,
-                  formattedDataShoulderCenter
+                  formattedDataShoulderCenter,
+                  formattedShoulderWidth
                 );
                 const SSLD = shoulderLeanDegree(
                   standardData.leftShoulder,
-                  standardData.rightShoulder
+                  standardData.rightShoulder,
+                  standardData.leftHip,
+                  standardData.rightHip,
+                  false
                 );
                 const FSLD = shoulderLeanDegree(
                   formattedData.leftShoulder,
-                  formattedData.rightShoulder
+                  formattedData.rightShoulder,
+                  formattedData.leftHip,
+                  formattedData.rightHip,
+                  armsRaised
                 );
 
                 const inform = detectBadPose(
@@ -354,7 +472,6 @@ export default function DashboardPage() {
     pose2DRef.current?.clear();
     pose3DRef.current?.clear();
   }, []);
-
   const todayStats = {
     warnings: 3,
     focusTime: 42,
