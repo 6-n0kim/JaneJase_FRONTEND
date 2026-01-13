@@ -11,6 +11,7 @@ import type { Coordinate, MeasurementData } from '@/types/poseTypes';
 import { getCenter, dist2D } from '@/utils/detectPose';
 import { usePoseStore } from '@/stores/usePoseStore';
 import useGoogleStore from '@/stores/useAuthStore';
+import standardPoseImg from '@/assets/imgs/standardPose.png';
 
 const TASKS_VERSION = '0.10.0';
 const MODEL_URL =
@@ -34,6 +35,7 @@ export default function PoseWebcamPage() {
   const [running, setRunning] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [errorModalOpen, setErrorModalOpen] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState('');
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [measurementProgress, setMeasurementProgress] = useState(0);
@@ -390,9 +392,37 @@ export default function PoseWebcamPage() {
         >
           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         </button>
-        <h2 className="mb-2 text-2xl font-bold text-text md:text-3xl">
-          초기 정자세 설정
-        </h2>
+        <div className="flex items-center gap-2 mb-2 relative z-50">
+          <h2 className="text-2xl font-bold text-text md:text-3xl">
+            초기 정자세 설정
+          </h2>
+          <div className="relative group">
+            <span className="material-symbols-outlined text-2xl text-text-muted hover:text-text cursor-help transition-colors">
+              help
+            </span>
+            {/* Tooltip Content */}
+            <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 absolute left-full top-48 -translate-y-1/2 ml-4 w-[400px] bg-surface dark:bg-surface-dark rounded-xl shadow-xl border border-border p-4 z-50 pointer-events-none group-hover:pointer-events-auto">
+              <div className="space-y-3">
+                <div className="font-bold text-lg mb-2">정자세 가이드</div>
+                <div className="flex justify-center overflow-hidden rounded-lg bg-black/5 dark:bg-white/5">
+                  <img
+                    src={standardPoseImg}
+                    alt="정자세 가이드"
+                    className="w-full object-contain"
+                  />
+                </div>
+                <p className="text-sm text-text-muted leading-relaxed">
+                  위 예시처럼 정면을 보고 허리를 펴 바른 자세를 취해주세요.
+                  <br />
+                  Start 버튼을 누르고 측정 시작을 눌러 10초간 자세를 유지하면
+                  측정이 완료됩니다.
+                </p>
+              </div>
+              {/* Arrow */}
+              <div className="absolute right-[100%] top-1/2 -translate-y-1/2 border-8 border-transparent border-r-surface dark:border-r-surface-dark drop-shadow-sm"></div>
+            </div>
+          </div>
+        </div>
         <p className="text-muted text-sm">정자세를 유지해주세요.</p>
       </div>
 
@@ -448,7 +478,7 @@ export default function PoseWebcamPage() {
               </h3>
             </div>
             <Button onClick={handleNextPage} variant="accent" size="lg">
-              다음 단계로 이동
+              자세 교정하러 가기
             </Button>
           </div>
         </div>

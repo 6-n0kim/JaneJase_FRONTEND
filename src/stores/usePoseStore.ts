@@ -4,42 +4,27 @@ import type { MeasurementData } from '@/types/poseTypes';
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8010';
 
-interface ViewWarning {
-  timestamp: string;
-  duration: number;
-  status: any;
-  averages?: any;
-}
-
 interface StandardData {
   user_id: string;
   ended_at: string | null;
   measurement: MeasurementData;
 }
 
+interface ViewWarning {
+  pose_id: string;
+  timestamp: string;
+  duration: number;
+  status: any;
+  averages?: any;
+}
+
 interface PoseState {
-  saveWarning: (data: ViewWarning) => Promise<void>;
-}
-
-interface StandardDataState {
+  saveWarning: (data: ViewWarning) => Promise<any>;
   saveStandardData: (data: StandardData) => Promise<string | null>;
+  endCorrection: (data: StandardData) => Promise<void>;
 }
 
-export const usePoseDetactStore = create<PoseState>(() => ({
-  saveWarning: async (data: ViewWarning) => {
-    try {
-      await fetch(`${API_BASE_URL}/pose/warning`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-    } catch (e) {
-      console.error('DB 저장 실패:', e);
-    }
-  },
-}));
-
-export const usePoseStore = create<StandardDataState>(() => ({
+export const usePoseStore = create<PoseState>(() => ({
   saveStandardData: async (data: StandardData) => {
     try {
       const response = await fetch(`${API_BASE_URL}/pose/create`, {
@@ -52,6 +37,32 @@ export const usePoseStore = create<StandardDataState>(() => ({
     } catch (e) {
       console.error('DB 저장 실패:', e);
       return null;
+    }
+  },
+  saveWarning: async (data: ViewWarning) => {
+    console.log('data : ', data);
+    try {
+      const response = await fetch(`${API_BASE_URL}/pose/warning`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      return result;
+    } catch (e) {
+      console.error('DB 저장 실패:', e);
+      return null;
+    }
+  },
+  endCorrection: async (data: StandardData) => {
+    try {
+      await fetch(`${API_BASE_URL}/pose/end`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.error('DB 저장 실패:', error);
     }
   },
 }));

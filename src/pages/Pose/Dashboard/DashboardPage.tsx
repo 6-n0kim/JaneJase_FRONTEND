@@ -3,7 +3,7 @@ import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import { Pose3DRenderer } from '../Pose3DRenderer';
 import type { Pose2DRendererRef } from '../Pose2DRenderer';
 import type { Pose3DRendererRef } from '../Pose3DRenderer';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import {
@@ -22,10 +22,12 @@ import {
   shoulderLeanDegree,
   emaSmooth2DLandmarks,
 } from '@/utils/detectPose';
-import { usePoseDetactStore } from '@/stores/usePoseStore';
+
+import { usePoseStore } from '@/stores/usePoseStore';
 
 export default function DashboardPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const state = location.state as LocationState;
   const standardData = state?.measurementData;
   const pose_id = state?.pose_id;
@@ -44,6 +46,8 @@ export default function DashboardPage() {
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [developerMode, setDeveloperMode] = useState(false);
+  const [showEndSessionModal, setShowEndSessionModal] = useState(false);
+  const [showSavedModal, setShowSavedModal] = useState(false);
 
   const [poseData, setPoseData] = useState<any>(null);
 
@@ -54,10 +58,16 @@ export default function DashboardPage() {
   const ema2DRef = useRef<Float32Array | null>(null);
   const ema2DInitedRef = useRef(false);
 
+  // 각도 지표 안정화용 EMA (alpha 저계수)
+  const emaAnglesRef = useRef<{
+    FNTSD: number;
+    FETSD: number;
+    FSLD: number;
+  } | null>(null);
+
   const badPoseStartTimeRef = useRef<number>(-1);
   const alertTriggeredRef = useRef<boolean>(false);
-  // const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const { saveWarning } = usePoseDetactStore();
+  const saveWarning = usePoseStore(state => state.saveWarning);
 
   // 평균 각도 계산을 위한 Ref
   const accumulatedAnglesRef = useRef({
@@ -66,6 +76,47 @@ export default function DashboardPage() {
     FSLD: 0,
     count: 0,
   });
+
+  // 오탐 방지: 값이 고정된(frozen) 상태 감지
+  const lastAnglesRef = useRef<{
+    FNTSD: number;
+    FETSD: number;
+    FSLD: number;
+  } | null>(null);
+  const staticStartTimeRef = useRef<number>(-1);
+
+  const [stats, setStats] = useState({
+    warnings: 0,
+    unfocusTime: 0,
+  });
+
+  // 리셋 함수
+  const reset = useCallback(() => {
+    // 1. EMA 초기화
+    ema2DInitedRef.current = false;
+    if (ema2DRef.current) {
+      ema2DRef.current.fill(0); // 버퍼 비우기
+    }
+    emaAnglesRef.current = null; // 각도 EMA 초기화
+
+    // 2. 렌더러 클리어
+    pose2DRef.current?.clear();
+    pose3DRef.current?.clear();
+
+    // 3. 상태 초기화
+    setCurrentStatus(null);
+    setPoseData(null);
+    badPoseStartTimeRef.current = -1;
+    alertTriggeredRef.current = false;
+    accumulatedAnglesRef.current = {
+      FNTSD: 0,
+      FETSD: 0,
+      FSLD: 0,
+      count: 0,
+    };
+
+    console.log('포즈 상태 리셋 완료');
+  }, []);
 
   const processLandmarks = useCallback(
     (result: any) => {
@@ -193,16 +244,63 @@ export default function DashboardPage() {
           armsRaised
         );
 
+        // --- 각도 지표 EMA 스무딩 적용 ---
+        const angleAlpha = 0.2; // 반응성 vs 안정성 조절 (작을수록 부드러움)
+        let smoothFNTSD = FNTSD;
+        let smoothFETSD = FETSD;
+        let smoothFSLD = FSLD;
+
+        if (emaAnglesRef.current) {
+          smoothFNTSD =
+            angleAlpha * FNTSD + (1 - angleAlpha) * emaAnglesRef.current.FNTSD;
+          smoothFETSD =
+            angleAlpha * FETSD + (1 - angleAlpha) * emaAnglesRef.current.FETSD;
+          smoothFSLD =
+            angleAlpha * FSLD + (1 - angleAlpha) * emaAnglesRef.current.FSLD;
+        }
+
+        emaAnglesRef.current = {
+          FNTSD: smoothFNTSD,
+          FETSD: smoothFETSD,
+          FSLD: smoothFSLD,
+        };
+
         const inform = detectBadPose(
           SNTSD, // standardNSDegree
           SETSD, // standardESDegree
           SSLD, // standardShoulderLeanDegree
-          FNTSD, // currentNSDegree
-          FETSD, // currentESDegree
-          FSLD // currentShoulderLeanDegree
+          smoothFNTSD, // currentNSDegree
+          smoothFETSD, // currentESDegree
+          smoothFSLD // currentShoulderLeanDegree
         );
         if (inform) {
           setCurrentStatus(inform);
+
+          // --- 오탐 방지: 값이 완전히 고정되어 있는지 확인 ---
+          if (lastAnglesRef.current) {
+            const isFrozen =
+              Math.abs(lastAnglesRef.current.FNTSD - FNTSD) < 0.0001 &&
+              Math.abs(lastAnglesRef.current.FETSD - FETSD) < 0.0001 &&
+              Math.abs(lastAnglesRef.current.FSLD - FSLD) < 0.0001;
+
+            if (isFrozen) {
+              if (staticStartTimeRef.current === -1) {
+                staticStartTimeRef.current = Date.now();
+              } else {
+                const staticDuration = Date.now() - staticStartTimeRef.current;
+                if (staticDuration >= 3000) {
+                  // 3초 이상 값이 고정됨 -> 오탐으로 간주하고 리셋
+                  console.warn('⚠️ 화면이 고정된 것으로 감지되어 리셋합니다.');
+                  reset();
+                  return; // 리셋 후 처리를 중단
+                }
+              }
+            } else {
+              // 값이 변함 -> 리셋
+              staticStartTimeRef.current = -1;
+            }
+          }
+          lastAnglesRef.current = { FNTSD, FETSD, FSLD };
 
           // --- 5초 경고 지속 및 동적 시간 측정 로직 ---
           const isWarningOrDanger =
@@ -279,6 +377,7 @@ export default function DashboardPage() {
               };
 
               const warningData = {
+                pose_id: pose_id!,
                 timestamp: new Date().toISOString(),
                 duration: totalDurationSec, // 실제 유지된 총 시간
                 status: badPoseRef.current, // 5초 이상 나쁜 자세였던 경우
@@ -287,7 +386,15 @@ export default function DashboardPage() {
 
               console.log('자세 교정됨! 데이터 전송:', warningData);
               console.log('count : ', accumulatedAnglesRef.current.count);
-              saveWarning(warningData);
+              saveWarning(warningData).then(result => {
+                console.log('result : ', result);
+                if (result) {
+                  setStats({
+                    warnings: result.count,
+                    unfocusTime: Math.round(result.total_time / 60),
+                  });
+                }
+              });
             }
 
             // 상태 초기화
@@ -311,7 +418,8 @@ export default function DashboardPage() {
         pose3DRef.current?.updateWorldLandmarks(lm3d as any);
       }
     },
-    [standardData, saveWarning]
+
+    [standardData, saveWarning, pose_id, reset]
   );
 
   // MediaPipe 초기화
@@ -533,37 +641,6 @@ export default function DashboardPage() {
     pose3DRef.current?.clear();
   }, []);
 
-  // 리셋 함수
-  const reset = useCallback(() => {
-    // 1. EMA 초기화
-    ema2DInitedRef.current = false;
-    if (ema2DRef.current) {
-      ema2DRef.current.fill(0); // 버퍼 비우기
-    }
-
-    // 2. 렌더러 클리어
-    pose2DRef.current?.clear();
-    pose3DRef.current?.clear();
-
-    // 3. 상태 초기화
-    setCurrentStatus(null);
-    setPoseData(null);
-    badPoseStartTimeRef.current = -1;
-    alertTriggeredRef.current = false;
-    accumulatedAnglesRef.current = {
-      FNTSD: 0,
-      FETSD: 0,
-      FSLD: 0,
-      count: 0,
-    };
-
-    console.log('포즈 상태 리셋 완료');
-  }, []);
-  const todayStats = {
-    warnings: 3,
-    focusTime: 42,
-  };
-
   return (
     <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
       {/* 왼쪽 사이드바 */}
@@ -571,20 +648,28 @@ export default function DashboardPage() {
         <CurrentStatusCard detectBadPoseInform={currentStatus!} />
 
         <TodayStatsCard
-          warnings={todayStats.warnings}
-          focusTime={todayStats.focusTime}
+          warnings={stats.warnings}
+          unfocusTime={stats.unfocusTime}
         />
         <StretchingReminderCard />
-      </div>
 
-      {/* 메인 콘텐츠 영역 */}
-      <div className="lg:col-span-9 flex flex-col h-full order-1 lg:order-2">
+        <Button
+          variant="danger"
+          className="w-full"
+          onClick={() => setShowEndSessionModal(true)}
+        >
+          교정 종료
+        </Button>
         <button
           className="top-4 right-4 z-50"
           onClick={() => setDeveloperMode(!developerMode)}
         >
-          디버깅용 버튼{' '}
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         </button>
+      </div>
+
+      {/* 메인 콘텐츠 영역 */}
+      <div className="lg:col-span-9 flex flex-col h-full order-1 lg:order-2">
         <VideoFeedSection
           videoRef={videoRef}
           pose2DRef={pose2DRef}
@@ -648,6 +733,75 @@ export default function DashboardPage() {
           </div>
         </Modal>
       </div>
+
+      {/* End Session Confirmation Modal */}
+      <Modal
+        open={showEndSessionModal}
+        onClose={() => setShowEndSessionModal(false)}
+        title="교정 종료"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-text-muted">현재 교정을 종료하시겠습니까?</p>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowEndSessionModal(false)}
+            >
+              취소
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                stop();
+                if (pose_id) {
+                  usePoseStore.getState().endCorrection({
+                    user_id: '',
+                    measurement: {},
+                    ended_at: new Date().toISOString(),
+                    pose_id: pose_id,
+                  } as any);
+                }
+                setShowEndSessionModal(false);
+                setShowSavedModal(true);
+              }}
+            >
+              종료
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Saved Success Modal */}
+      <Modal
+        open={showSavedModal}
+        onClose={() => {}} // Block outside click
+        title="저장 완료"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col items-center justify-center py-4">
+            <span className="material-symbols-outlined text-4xl text-success mb-2">
+              check_circle
+            </span>
+            <p className="text-text font-medium">
+              자세 교정 데이터가 저장되었습니다.
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowSavedModal(false);
+                navigate('/mypage', { state: { stats } });
+              }}
+              className="w-full"
+            >
+              확인
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }
