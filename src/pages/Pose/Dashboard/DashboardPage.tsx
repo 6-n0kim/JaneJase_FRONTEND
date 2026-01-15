@@ -54,6 +54,25 @@ export default function DashboardPage() {
   const [currentStatus, setCurrentStatus] =
     useState<detectBadPoseInform | null>(null);
 
+  // 화면 가시성 상태 추적 (렌더링 최적화용)
+  const isDocumentVisibleRef = useRef(!document.hidden);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isDocumentVisibleRef.current = !document.hidden;
+      console.log(
+        isDocumentVisibleRef.current
+          ? '화면 보임: 렌더링 재개'
+          : '화면 숨김: 렌더링 일시정지 (인식은 계속됨)'
+      );
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // 지표 계산용 EMA(landmark 흔들림 감소)
   const ema2DRef = useRef<Float32Array | null>(null);
   const ema2DInitedRef = useRef(false);
@@ -123,7 +142,10 @@ export default function DashboardPage() {
       // 2D 랜드마크 업데이트
       const lm2d = result.landmarks?.[0];
       if (lm2d && lm2d.length && standardData) {
-        pose2DRef.current?.updateLandmarks(lm2d as any);
+        // 화면이 보일 때만 렌더링 업데이트
+        if (isDocumentVisibleRef.current) {
+          pose2DRef.current?.updateLandmarks(lm2d as any);
+        }
 
         // 지표 계산은 EMA로 한 번 더 안정화된 값을 사용
         const {
@@ -274,7 +296,10 @@ export default function DashboardPage() {
           smoothFSLD // currentShoulderLeanDegree
         );
         if (inform) {
-          setCurrentStatus(inform);
+          // 화면이 보일 때만 상태 업데이트 (렌더링 방지)
+          if (isDocumentVisibleRef.current) {
+            setCurrentStatus(inform);
+          }
 
           // --- 오탐 방지: 값이 완전히 고정되어 있는지 확인 ---
           if (lastAnglesRef.current) {
@@ -420,13 +445,19 @@ export default function DashboardPage() {
           }
         }
 
-        setPoseData(formattedData);
+        // 화면이 보일 때만 디버그 데이터 업데이트
+        if (isDocumentVisibleRef.current) {
+          setPoseData(formattedData);
+        }
       }
 
       // 3D 월드 랜드마크 업데이트
       const lm3d = result.worldLandmarks?.[0];
       if (lm3d && lm3d.length) {
-        pose3DRef.current?.updateWorldLandmarks(lm3d as any);
+        // 화면이 보일 때만 3D 렌더링
+        if (isDocumentVisibleRef.current) {
+          pose3DRef.current?.updateWorldLandmarks(lm3d as any);
+        }
       }
     },
 
@@ -499,7 +530,7 @@ export default function DashboardPage() {
         streamRef.current = stream;
         video.srcObject = stream;
 
-        await video.play().catch(() => {});
+        await video.play().catch(() => { });
 
         // 비디오 메타데이터 준비 대기
         await new Promise<void>(resolve => {
@@ -577,7 +608,7 @@ export default function DashboardPage() {
       streamRef.current = stream;
       video.srcObject = stream;
 
-      await video.play().catch(() => {});
+      await video.play().catch(() => { });
 
       // 비디오 메타데이터 준비 대기
       await new Promise<void>(resolve => {
@@ -692,9 +723,8 @@ export default function DashboardPage() {
 
         {/* 3D Pose Renderer (개발자 모드) */}
         <div
-          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${
-            developerMode ? '' : 'hidden'
-          }`}
+          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${developerMode ? '' : 'hidden'
+            }`}
         >
           <div className="border-b border-border px-4 py-3 text-sm text-text-muted">
             3D Pose View (worldLandmarks)
@@ -704,9 +734,8 @@ export default function DashboardPage() {
 
         {/* 실시간 포즈 데이터 표시 (개발자 모드) */}
         <div
-          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${
-            developerMode ? '' : 'hidden'
-          }`}
+          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${developerMode ? '' : 'hidden'
+            }`}
         >
           <div className="border-b border-border px-4 py-3 text-sm text-text-muted">
             실시간 포즈 데이터
@@ -786,7 +815,7 @@ export default function DashboardPage() {
       {/* Saved Success Modal */}
       <Modal
         open={showSavedModal}
-        onClose={() => {}} // Block outside click
+        onClose={() => { }} // Block outside click
         title="저장 완료"
         size="sm"
       >
