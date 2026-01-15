@@ -75,17 +75,28 @@ export default function PoseWebcamPage() {
         throw new Error('측정 데이터가 없습니다.');
       }
 
-      const pose_id = await saveStandardData({
-        user_id: user?.id || '',
-        measurement: avgMeasurementData,
-        ended_at: null,
-      });
+      if (user) {
+        // 로그인 유저: DB 저장 후 이동
+        const pose_id = await saveStandardData({
+          user_id: user.id || '',
+          measurement: avgMeasurementData,
+          ended_at: null,
+        });
 
-      if (pose_id) {
+        if (pose_id) {
+          navigate('/pose/dashboard', {
+            state: {
+              measurementData: avgMeasurementData,
+              pose_id: pose_id,
+            },
+          });
+        }
+      } else {
+        // 게스트: 저장 없이 이동
         navigate('/pose/dashboard', {
           state: {
             measurementData: avgMeasurementData,
-            pose_id: pose_id,
+            pose_id: 'guest',
           },
         });
       }

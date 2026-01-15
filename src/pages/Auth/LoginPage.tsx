@@ -159,7 +159,7 @@ export default function LoginPage() {
           </a>
         </div>
         <p className="mt-4 text-[10px] text-muted">
-          © 2024 JaneJase. All rights reserved.
+          © 2026 JaneJase. All rights reserved.
         </p>
       </footer>
 

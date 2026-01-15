@@ -386,15 +386,26 @@ export default function DashboardPage() {
 
               console.log('자세 교정됨! 데이터 전송:', warningData);
               console.log('count : ', accumulatedAnglesRef.current.count);
-              saveWarning(warningData).then(result => {
-                console.log('result : ', result);
-                if (result) {
-                  setStats({
-                    warnings: result.count,
-                    unfocusTime: Math.round(result.total_time / 60),
-                  });
-                }
-              });
+
+              // 게스트가 아닌 경우에만 DB 저장
+              if (pose_id !== 'guest') {
+                saveWarning(warningData).then(result => {
+                  console.log('result : ', result);
+                  if (result) {
+                    setStats({
+                      warnings: result.count,
+                      unfocusTime: Math.round(result.total_time / 60),
+                    });
+                  }
+                });
+              } else {
+                // 게스트는 로컬 통계만 업데이트 (임시)
+                setStats(prev => ({
+                  warnings: prev.warnings + 1,
+                  unfocusTime:
+                    prev.unfocusTime + Math.round(warningData.duration / 60),
+                }));
+              }
             }
 
             // 상태 초기화
@@ -754,7 +765,7 @@ export default function DashboardPage() {
               variant="danger"
               onClick={() => {
                 stop();
-                if (pose_id) {
+                if (pose_id && pose_id !== 'guest') {
                   usePoseStore.getState().endCorrection({
                     user_id: '',
                     measurement: {},
@@ -793,7 +804,11 @@ export default function DashboardPage() {
               variant="primary"
               onClick={() => {
                 setShowSavedModal(false);
-                navigate('/mypage', { state: { stats } });
+                if (pose_id === 'guest') {
+                  navigate('/');
+                } else {
+                  navigate('/mypage', { state: { stats } });
+                }
               }}
               className="w-full"
             >
