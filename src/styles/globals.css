@@ -14,8 +14,8 @@
     /* #F8FAFC */
     --jj-surface: 255 255 255;
     /* #FFFFFF */
-    --jj-border: 226 232 240;
-    /* #E2E8F0 */
+    --jj-border: 229 231 235;
+    /* #E5E7EB */
 
     /* text */
     --jj-text: 15 23 42;
@@ -26,8 +26,8 @@
     /* #64748B */
 
     /* brand semantic */
-    --jj-primary: 0 100 255;
-    /* #0064FF */
+    --jj-primary: 37 99 235;
+    /* #2563EB */
     --jj-accent: 95 51 255;
     /* #5F33FF */
     --jj-success: 0 135 0;

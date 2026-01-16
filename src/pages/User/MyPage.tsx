@@ -4,6 +4,7 @@ import useGoogleStore from '@/stores/useAuthStore';
 import useMypageStore from '@/stores/useMypageStore';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
+import StatisticsSection from './StatisticsSection';
 
 interface LocationState {
   stats?: {
@@ -110,6 +111,9 @@ export default function MyPage() {
             </Button>
           </div>
         </div>
+
+        {/* Statistics Section */}
+        <StatisticsSection history={history} />
 
         {/* History List */}
         <div className="space-y-4">

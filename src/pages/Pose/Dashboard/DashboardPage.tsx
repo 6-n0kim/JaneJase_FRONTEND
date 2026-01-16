@@ -530,7 +530,7 @@ export default function DashboardPage() {
         streamRef.current = stream;
         video.srcObject = stream;
 
-        await video.play().catch(() => { });
+        await video.play().catch(() => {});
 
         // 비디오 메타데이터 준비 대기
         await new Promise<void>(resolve => {
@@ -608,7 +608,7 @@ export default function DashboardPage() {
       streamRef.current = stream;
       video.srcObject = stream;
 
-      await video.play().catch(() => { });
+      await video.play().catch(() => {});
 
       // 비디오 메타데이터 준비 대기
       await new Promise<void>(resolve => {
@@ -723,8 +723,9 @@ export default function DashboardPage() {
 
         {/* 3D Pose Renderer (개발자 모드) */}
         <div
-          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${developerMode ? '' : 'hidden'
-            }`}
+          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${
+            developerMode ? '' : 'hidden'
+          }`}
         >
           <div className="border-b border-border px-4 py-3 text-sm text-text-muted">
             3D Pose View (worldLandmarks)
@@ -734,8 +735,9 @@ export default function DashboardPage() {
 
         {/* 실시간 포즈 데이터 표시 (개발자 모드) */}
         <div
-          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${developerMode ? '' : 'hidden'
-            }`}
+          className={`mt-6 overflow-hidden rounded-xl border border-border bg-bg shadow-soft ${
+            developerMode ? '' : 'hidden'
+          }`}
         >
           <div className="border-b border-border px-4 py-3 text-sm text-text-muted">
             실시간 포즈 데이터
@@ -815,7 +817,7 @@ export default function DashboardPage() {
       {/* Saved Success Modal */}
       <Modal
         open={showSavedModal}
-        onClose={() => { }} // Block outside click
+        onClose={() => {}} // Block outside click
         title="저장 완료"
         size="sm"
       >

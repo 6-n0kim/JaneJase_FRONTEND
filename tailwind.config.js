@@ -5,15 +5,15 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        // 영문 + 한글 같이 보기 좋은 조합
+        // 영문 + 한글 같이 보기 좋은 조합 (User Requested: Noto Sans KR / Pretendard)
         sans: [
-          'Inter',
           'Pretendard',
+          'Noto Sans KR',
+          'Inter',
           'system-ui',
           '-apple-system',
           'Segoe UI',
           'Roboto',
-          'Noto Sans KR',
           'Apple SD Gothic Neo',
           'sans-serif',
         ],
@@ -23,7 +23,7 @@ module.exports = {
         // ✅ 브랜드 원색 (고정값)
         jj: {
           blue: {
-            500: '#0064FF',
+            500: '#2563EB', // Updated to user request
           },
           purple: {
             500: '#5F33FF',
@@ -58,6 +58,7 @@ module.exports = {
       },
 
       borderRadius: {
+        xl: '12px', // User Requested: 12px
         xl2: '1.25rem',
       },
     },

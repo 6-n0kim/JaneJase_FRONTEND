@@ -119,11 +119,10 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-full border border-border bg-success-soft px-4 py-1.5 text-center text-xs font-normal leading-normal text-success mt-2">
-            <ShieldCheck className="w-4 h-4" />
-            <p>영상은 서버에 저장되지 않습니다. 개인정보는 안전합니다.</p>
+            <div className="flex items-center gap-2 rounded-full border border-border bg-success-soft px-4 py-1.5 text-center text-xs font-normal leading-normal text-success mt-2">
+              <ShieldCheck className="w-4 h-4" />
+              <p>영상은 서버에 저장되지 않습니다.</p>
+            </div>
           </div>
 
           {/* Features Section */}
